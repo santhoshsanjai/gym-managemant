@@ -60,7 +60,7 @@ Create a real admin with `python -m app.cli create-admin <username>`.
 ### Tests
 
 ```bash
-cd backend && createdb -O gym gym_test && pytest     # 31 API tests on PostgreSQL
+cd backend && createdb -O gym gym_test && pytest     # API tests on PostgreSQL
 cd frontend && npx ng test --watch=false             # unit tests
 ```
 
@@ -109,7 +109,12 @@ Other rules worth knowing:
   can only be deactivated, not deleted.
 - New members get an Admin-set initial password and must change it on first sign-in.
   There is no self-service email reset in this release; the Admin resets passwords.
-- Important Admin actions are written to an audit log (`GET /api/audit-logs`).
+- Important Admin actions are written to an audit log, shown on the **Activity log** page.
+- **Settings** shows the rules in effect and lets Admins add, deactivate or reset other Admin accounts
+  (you can't deactivate yourself, and at least one active Admin always remains).
+- **Profile photos** are uploaded files (JPEG/PNG/WebP, max 2 MB, type checked from the file bytes),
+  stored in `MEDIA_DIR` (the `media` Docker volume) under random names. Members can change their own
+  photo when `photo_url` is in `MEMBER_EDITABLE_FIELDS`.
 - Login and check-in are rate limited in the API and again at Nginx.
 
 ## Deployment (Linux VPS)
@@ -125,7 +130,7 @@ docker compose up -d --build
 
 - The API container applies migrations on start, then serves on port 8000 behind Nginx.
 - Renew certificates with `certbot renew --webroot -w deploy/certbot/www` from cron, then `docker compose exec proxy nginx -s reload`.
-- Backups: `deploy/backup.sh` (daily `pg_dump`, 14-day retention). Instructions for a restore test are in the script.
+- Backups: `deploy/backup.sh` (daily `pg_dump` plus the photos volume, 14-day retention). Instructions for a restore test are in the script.
 - Web Push is optional: set `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`. In-app notifications always work.
 
 API documentation is served at `/api/docs` (Swagger UI) and `/api/redoc`.

@@ -2,15 +2,16 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Api, errorMessage } from '../../core/api.service';
-import { Attendance, Member, Page } from '../../core/models';
+import { Attendance, Page } from '../../core/models';
 import { ToastService } from '../../core/toast.service';
 import { SHARED } from '../../shared';
+import { MemberPicker } from '../../shared/member-picker';
 
 const today = () => new Date().toLocaleDateString('en-CA');
 
 @Component({
   selector: 'app-attendance',
-  imports: [FormsModule, RouterLink, ...SHARED],
+  imports: [FormsModule, RouterLink, MemberPicker, ...SHARED],
   template: `
     <div class="page-head">
       <h1>Attendance</h1>
@@ -23,12 +24,7 @@ const today = () => new Date().toLocaleDateString('en-CA');
       <div class="field"><label for="dt">To</label><input id="dt" type="date" [(ngModel)]="to" (ngModelChange)="load(1)" /></div>
       <div class="field grow">
         <label for="mf">Member</label>
-        <select id="mf" [(ngModel)]="memberId" (ngModelChange)="load(1)">
-          <option value="">All members</option>
-          @for (m of members(); track m.id) {
-            <option [value]="m.id">{{ m.full_name }} · {{ m.member_code }}</option>
-          }
-        </select>
+        <app-member-picker inputId="mf" placeholder="All members (type to filter)" (picked)="memberId = $any($event)?.id ?? ''; load(1)" />
       </div>
     </div>
     <div class="card">
@@ -72,12 +68,9 @@ const today = () => new Date().toLocaleDateString('en-CA');
       <form class="form" (ngSubmit)="manual()">
         <div class="field">
           <label for="mm">Member</label>
-          <select id="mm" name="mm" [(ngModel)]="manualMember" required>
-            <option value="">Select member</option>
-            @for (m of members(); track m.id) {
-              <option [value]="m.id">{{ m.full_name }} · {{ m.mobile }}</option>
-            }
-          </select>
+          @if (manualOpen()) {
+            <app-member-picker inputId="mm" [activeOnly]="true" (picked)="manualMember = $any($event)?.id ?? ''" />
+          }
         </div>
         <div class="field">
           <label for="md">Date</label>
@@ -95,7 +88,6 @@ export class AttendancePage implements OnInit {
   private api = inject(Api);
   private toast = inject(ToastService);
   protected page = signal<Page<Attendance> | null>(null);
-  protected members = signal<Member[]>([]);
   protected manualOpen = signal(false);
   protected todayStr = today();
   from = today();
@@ -105,7 +97,6 @@ export class AttendancePage implements OnInit {
   manualDate = today();
 
   ngOnInit() {
-    this.api.get<Page<Member>>('/members', { page_size: 200, status: 'active' }).subscribe((p) => this.members.set(p.items));
     this.load(1);
   }
 
@@ -119,6 +110,7 @@ export class AttendancePage implements OnInit {
     this.api.post('/attendance/manual', { member_id: Number(this.manualMember), attendance_date: this.manualDate || null }).subscribe({
       next: () => {
         this.manualOpen.set(false);
+        this.manualMember = '';
         this.toast.ok('Attendance recorded');
         this.load(1);
       },

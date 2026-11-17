@@ -59,8 +59,13 @@ import { SHARED } from '../../shared';
             @for (m of page()?.items; track m.id) {
               <tr class="clickable" (click)="open(m)" tabindex="0" (keydown.enter)="open(m)">
                 <td>
-                  <strong>{{ m.full_name }}</strong>
-                  <div class="muted small">{{ m.member_code }}</div>
+                  <div class="with-avatar">
+                    <app-avatar [name]="m.full_name" [src]="m.photo_url" [size]="36" />
+                    <div>
+                      <strong>{{ m.full_name }}</strong>
+                      <div class="muted small">{{ m.member_code }}</div>
+                    </div>
+                  </div>
                 </td>
                 <td>{{ m.mobile }}</td>
                 <td class="hide-sm">{{ m.current_package_name || '—' }}</td>

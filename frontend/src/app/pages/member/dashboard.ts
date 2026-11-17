@@ -10,6 +10,7 @@ import { SHARED } from '../../shared';
   template: `
     @if (d(); as d) {
       <div class="page-head">
+        <app-avatar [name]="d.profile.full_name" [src]="d.profile.photo_url" [size]="48" />
         <div>
           <h1>Hi, {{ d.profile.full_name.split(' ')[0] }}</h1>
           <div class="sub">{{ d.profile.member_code }} · {{ d.as_of | date: 'EEEE, d MMM' }}</div>

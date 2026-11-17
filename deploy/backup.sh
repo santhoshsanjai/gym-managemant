@@ -8,5 +8,8 @@ DEST=${BACKUP_DIR:-/var/backups/gym}
 mkdir -p "$DEST"
 FILE="$DEST/gym-$(date +%Y%m%d-%H%M%S).sql.gz"
 docker compose exec -T db pg_dump -U "${POSTGRES_USER:-gym}" -d "${POSTGRES_DB:-gym}" --no-owner | gzip > "$FILE"
+# Profile photos live in the "media" volume.
+docker compose exec -T api tar -czf - -C /app media > "$DEST/media-$(date +%Y%m%d-%H%M%S).tar.gz"
+find "$DEST" -name 'media-*.tar.gz' -mtime +14 -delete
 find "$DEST" -name 'gym-*.sql.gz' -mtime +14 -delete
 echo "$(date -Is) backup written: $FILE ($(du -h "$FILE" | cut -f1))"

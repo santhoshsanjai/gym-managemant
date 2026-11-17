@@ -5,10 +5,11 @@ import { Api, errorMessage } from '../../core/api.service';
 import { Member } from '../../core/models';
 import { ToastService } from '../../core/toast.service';
 import { SHARED } from '../../shared';
+import { PhotoUpload } from '../../shared/photo-upload';
 
 @Component({
   selector: 'app-profile',
-  imports: [ReactiveFormsModule, RouterLink, ...SHARED],
+  imports: [ReactiveFormsModule, RouterLink, PhotoUpload, ...SHARED],
   template: `
     <div class="page-head">
       <h1>Profile</h1>
@@ -19,6 +20,18 @@ import { SHARED } from '../../shared';
       <div class="grid two">
         <section class="card">
           <h2>Account</h2>
+          @if (can('photo_url')) {
+            <app-photo-upload
+              [name]="m.full_name"
+              [url]="m.photo_url"
+              uploadPath="/me/profile/photo"
+              removePath="/me/profile/photo"
+              (changed)="onPhoto($event)"
+            />
+          } @else {
+            <app-avatar [name]="m.full_name" [src]="m.photo_url" [size]="88" />
+          }
+          <div style="height:1rem"></div>
           <dl class="kv">
             <dt>Member ID</dt>
             <dd>{{ m.member_code }}</dd>
@@ -69,9 +82,6 @@ import { SHARED } from '../../shared';
             @if (can('address')) {
               <div class="field"><label for="pa">Address</label><textarea id="pa" formControlName="address"></textarea></div>
             }
-            @if (can('photo_url')) {
-              <div class="field"><label for="pph">Photo URL</label><input id="pph" type="url" formControlName="photo_url" /></div>
-            }
             <button class="btn primary" type="submit" [disabled]="form.invalid || form.pristine">Save</button>
           </form>
         </section>
@@ -90,7 +100,6 @@ export class ProfilePage implements OnInit {
     gender: [null as string | null],
     date_of_birth: [''],
     address: [''],
-    photo_url: [''],
   });
 
   ngOnInit() {
@@ -100,6 +109,11 @@ export class ProfilePage implements OnInit {
       this.form.patchValue(m as any);
       this.form.markAsPristine();
     });
+  }
+
+  onPhoto(updated: Member) {
+    this.m.update((m) => (m ? { ...m, photo_url: updated.photo_url } : m));
+    this.toast.ok(updated.photo_url ? 'Photo updated' : 'Photo removed');
   }
 
   can(field: string) {

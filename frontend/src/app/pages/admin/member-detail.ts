@@ -6,22 +6,27 @@ import { Attendance, Member, Page, Payment, Subscription } from '../../core/mode
 import { ToastService } from '../../core/toast.service';
 import { SHARED } from '../../shared';
 import { PaymentForm } from '../../shared/payment-form';
+import { PhotoUpload } from '../../shared/photo-upload';
 import { SubscriptionForm } from '../../shared/subscription-form';
 
 type Tab = 'subscriptions' | 'payments' | 'attendance';
 
 @Component({
   selector: 'app-member-detail',
-  imports: [RouterLink, FormsModule, SubscriptionForm, PaymentForm, ...SHARED],
+  imports: [RouterLink, FormsModule, SubscriptionForm, PaymentForm, PhotoUpload, ...SHARED],
   template: `
     @if (m(); as m) {
       <div class="page-head">
         <a class="btn ghost sm" routerLink="/admin/members">← Members</a>
+        <app-avatar [name]="m.full_name" [src]="m.photo_url" [size]="48" />
         <div>
           <h1>{{ m.full_name }}</h1>
           <div class="sub">{{ m.member_code }} · joined {{ m.joining_date | date: 'd MMM y' }}</div>
         </div>
-        <app-badge [value]="m.membership_state" [text]="m.membership_state === 'none' ? 'No membership' : 'Membership ' + m.membership_state" />
+        <app-badge
+          [value]="m.membership_state"
+          [text]="m.membership_state === 'none' ? 'No membership' : 'Membership ' + m.membership_state"
+        />
         <app-badge [value]="m.status" [text]="'Account ' + m.status" />
         <span class="spacer"></span>
         <div class="actions">
@@ -34,6 +39,14 @@ type Tab = 'subscriptions' | 'payments' | 'attendance';
       <div class="grid two">
         <section class="card">
           <h2>Profile</h2>
+          <app-photo-upload
+            [name]="m.full_name"
+            [url]="m.photo_url"
+            [uploadPath]="'/members/' + m.id + '/photo'"
+            [removePath]="'/members/' + m.id + '/photo'"
+            (changed)="onPhoto($event)"
+          />
+          <div style="height:1rem"></div>
           <dl class="kv">
             <dt>Mobile</dt>
             <dd>{{ m.mobile }}</dd>
@@ -298,6 +311,11 @@ export class MemberDetailPage implements OnInit {
     });
     this.loadPayments(1);
     this.loadAttendance(1);
+  }
+
+  onPhoto(updated: Member) {
+    this.m.update((m) => (m ? { ...m, photo_url: updated.photo_url } : m));
+    this.toast.ok(updated.photo_url ? 'Photo updated' : 'Photo removed');
   }
 
   loadPayments(page: number) {

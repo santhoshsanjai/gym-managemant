@@ -62,10 +62,13 @@ const MOBILE = /^\+?[0-9]{7,15}$/;
             }
           </select>
         </div>
-        <div class="field">
-          <label for="photo">Photo URL</label>
-          <input id="photo" type="url" formControlName="photo_url" />
-        </div>
+        @if (!id()) {
+          <div class="field">
+            <label for="photo">Photo</label>
+            <input id="photo" type="file" accept="image/jpeg,image/png,image/webp" capture="user" (change)="pickPhoto($event)" />
+            <span class="hint">Optional. JPEG, PNG or WebP up to 2 MB.</span>
+          </div>
+        }
         <div class="field full">
           <label for="addr">Address</label>
           <textarea id="addr" formControlName="address"></textarea>
@@ -104,7 +107,6 @@ export class MemberFormPage implements OnInit {
     date_of_birth: [''],
     joining_date: [''],
     trainer_id: [null as number | null],
-    photo_url: [''],
     address: [''],
     password: ['', [Validators.required, Validators.minLength(8)]],
   });
@@ -119,6 +121,18 @@ export class MemberFormPage implements OnInit {
     }
   }
 
+  private photo: File | null = null;
+
+  pickPhoto(ev: Event) {
+    const f = (ev.target as HTMLInputElement).files?.[0] ?? null;
+    if (f && f.size > 2 * 1024 * 1024) {
+      this.toast.error('That photo is larger than 2 MB.');
+      (ev.target as HTMLInputElement).value = '';
+      return;
+    }
+    this.photo = f;
+  }
+
   submit() {
     const raw = this.form.getRawValue();
     const body: any = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v === '' ? null : v]));
@@ -129,6 +143,11 @@ export class MemberFormPage implements OnInit {
     this.error.set('');
     req.subscribe({
       next: (m) => {
+        if (!this.id() && this.photo) {
+          this.api.upload(`/members/${m.id}/photo`, this.photo).subscribe({
+            error: (e) => this.toast.error(`Member saved, but the photo upload failed: ${errorMessage(e)}`),
+          });
+        }
         if (this.id()) this.toast.ok('Member updated');
         else this.toast.show(`Member ${m.member_code} registered. Initial password: ${raw.password}`, 'ok', 20000);
         this.router.navigate(['/admin/members', m.id]);

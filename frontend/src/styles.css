@@ -702,3 +702,75 @@ dialog.modal::backdrop {
     padding: 1rem;
   }
 }
+
+/* Avatars, photo upload, member picker */
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+.avatar.initials {
+  display: inline-grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 700;
+}
+.photo-upload {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.photo-upload label.btn {
+  cursor: pointer;
+}
+.photo-upload .disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.with-avatar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.picker {
+  position: relative;
+  display: block;
+}
+.picker-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.12);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.picker-list li {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.picker-list li:hover,
+.picker-list li:focus {
+  background: var(--surface-2);
+  outline: none;
+}
+.picker-chosen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.3rem 0.3rem 0.3rem 0.7rem;
+  background: var(--surface);
+}

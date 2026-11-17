@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://gym:gym@localhost:5432/gym_test")
 os.environ["SCHEDULER_ENABLED"] = "false"
+os.environ["MEDIA_DIR"] = os.path.join(os.path.dirname(__file__), ".media-test")
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["JWT_SECRET"] = "test-secret-test-secret-test-secret"
 os.environ["BOOTSTRAP_ADMIN_USERNAME"] = ""

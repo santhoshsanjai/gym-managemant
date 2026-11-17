@@ -27,6 +27,11 @@ export class Api {
   patch<T>(path: string, body: unknown): Observable<T> {
     return this.http.patch<T>(this.base + path, body);
   }
+  upload<T>(path: string, file: File, field = 'file'): Observable<T> {
+    const form = new FormData();
+    form.append(field, file);
+    return this.http.post<T>(this.base + path, form);
+  }
   delete<T>(path: string): Observable<T> {
     return this.http.delete<T>(this.base + path);
   }
