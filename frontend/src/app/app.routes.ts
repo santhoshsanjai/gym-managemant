@@ -41,6 +41,8 @@ export const routes: Routes = [
       { path: 'attendance', loadComponent: () => import('./pages/admin/attendance').then((m) => m.AttendancePage), title: 'Attendance' },
       { path: 'payments', loadComponent: () => import('./pages/admin/payments').then((m) => m.PaymentsPage), title: 'Payments' },
       { path: 'reports', loadComponent: () => import('./pages/admin/reports').then((m) => m.ReportsPage), title: 'Reports' },
+      { path: 'activity', loadComponent: () => import('./pages/admin/activity').then((m) => m.ActivityPage), title: 'Activity log' },
+      { path: 'settings', loadComponent: () => import('./pages/admin/settings').then((m) => m.SettingsPage), title: 'Settings' },
       { path: 'notifications', loadComponent: () => import('./pages/notifications').then((m) => m.NotificationsPage), title: 'Alerts' },
     ],
   },

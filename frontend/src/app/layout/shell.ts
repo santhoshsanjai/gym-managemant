@@ -22,6 +22,8 @@ const ADMIN_NAV: NavItem[] = [
   { link: '/admin/packages', label: 'Packages', icon: '📦' },
   { link: '/admin/reports', label: 'Reports', icon: '⤓' },
   { link: '/admin/notifications', label: 'Alerts', icon: '🔔' },
+  { link: '/admin/activity', label: 'Activity log', icon: '☰' },
+  { link: '/admin/settings', label: 'Settings', icon: '⚙' },
 ];
 
 const MEMBER_NAV: NavItem[] = [

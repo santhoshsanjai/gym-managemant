@@ -1,10 +1,10 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from app.auth import service as auth_service
 from app.auth.deps import DB, AdminUser, CurrentMember, CurrentUser, require_admin
-from app.common import audit
+from app.common import audit, media
 from app.common.config import get_settings
 from app.common.pagination import Page, PageParams, paginate
 from app.common.timeutil import today
@@ -60,6 +60,33 @@ def set_member_status(member_id: int, body: MemberStatusUpdate, db: DB, admin: A
     return service.set_status(db, service.get_member(db, member_id), body.status, admin)
 
 
+async def _replace_photo(db, member, file: UploadFile, actor) -> None:
+    url = await media.save_photo(file)
+    old = member.photo_url
+    member.photo_url = url
+    audit.record(db, actor.id, "upload_photo", "member", member.id)
+    db.commit()
+    db.refresh(member)
+    media.delete_photo(old)
+
+
+@router.post("/{member_id}/photo", response_model=MemberOut)
+async def upload_member_photo(member_id: int, db: DB, admin: AdminUser, file: UploadFile = File(...)):
+    m = service.get_member(db, member_id)
+    await _replace_photo(db, m, file, admin)
+    return m
+
+
+@router.delete("/{member_id}/photo", response_model=MemberOut)
+def remove_member_photo(member_id: int, db: DB, admin: AdminUser):
+    m = service.get_member(db, member_id)
+    old, m.photo_url = m.photo_url, None
+    audit.record(db, admin.id, "remove_photo", "member", m.id)
+    db.commit()
+    media.delete_photo(old)
+    return m
+
+
 @router.post("/{member_id}/reset-password", status_code=204)
 def reset_member_password(member_id: int, body: PasswordReset, db: DB, admin: AdminUser):
     from app.auth.models import User
@@ -92,3 +119,22 @@ def update_my_profile(body: MemberSelfUpdate, member: CurrentMember, user: Curre
     if forbidden:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"You are not allowed to change: {', '.join(forbidden)}")
     return service.update_member(db, member, changes, user)
+
+
+@me_router.post("/profile/photo", response_model=MemberOut)
+async def upload_my_photo(member: CurrentMember, user: CurrentUser, db: DB, file: UploadFile = File(...)):
+    if "photo_url" not in get_settings().member_editable_fields:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Profile photos are managed by the gym")
+    await _replace_photo(db, member, file, user)
+    return member
+
+
+@me_router.delete("/profile/photo", response_model=MemberOut)
+def remove_my_photo(member: CurrentMember, user: CurrentUser, db: DB):
+    if "photo_url" not in get_settings().member_editable_fields:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Profile photos are managed by the gym")
+    old, member.photo_url = member.photo_url, None
+    audit.record(db, user.id, "remove_photo", "member", member.id)
+    db.commit()
+    media.delete_photo(old)
+    return member

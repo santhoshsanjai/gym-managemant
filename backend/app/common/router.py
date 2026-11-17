@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.auth.deps import DB, CurrentUser, require_admin
+from app.auth.models import User
 from app.common.audit import AuditLog
 from app.common.config import get_settings
 from app.common.pagination import Page, PageParams, paginate
@@ -52,6 +53,7 @@ def policy(_: CurrentUser):
 class AuditOut(BaseModel):
     id: int
     actor_user_id: int | None
+    actor_username: str | None = None
     action: str
     entity: str
     entity_id: str | None
@@ -59,18 +61,38 @@ class AuditOut(BaseModel):
     created_at: str
 
     @classmethod
-    def from_row(cls, r: AuditLog) -> "AuditOut":
+    def from_row(cls, r: AuditLog, actor: str | None = None) -> "AuditOut":
         return cls(
             **{k: getattr(r, k) for k in ("id", "actor_user_id", "action", "entity", "entity_id", "details")},
+            actor_username=actor,
             created_at=r.created_at.isoformat(),
         )
 
 
 @router.get("/audit-logs", response_model=Page[AuditOut], dependencies=[Depends(require_admin)])
-def audit_logs(db: DB, params: PageParams = Depends(), entity: str | None = None):
+def audit_logs(
+    db: DB,
+    params: PageParams = Depends(),
+    entity: str | None = None,
+    action: str | None = None,
+    entity_id: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
     stmt = select(AuditLog)
     if entity:
         stmt = stmt.where(AuditLog.entity == entity)
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    if entity_id:
+        stmt = stmt.where(AuditLog.entity_id == entity_id)
+    tz = get_settings().tz
+    if date_from:
+        stmt = stmt.where(AuditLog.created_at >= datetime.combine(date_from, time.min, tz))
+    if date_to:
+        stmt = stmt.where(AuditLog.created_at < datetime.combine(date_to + timedelta(days=1), time.min, tz))
     page = paginate(db, stmt.order_by(AuditLog.id.desc()), params)
-    page["items"] = [AuditOut.from_row(r) for r in page["items"]]
+    ids = {r.actor_user_id for r in page["items"] if r.actor_user_id}
+    names = dict(db.execute(select(User.id, User.username).where(User.id.in_(ids))).all()) if ids else {}
+    page["items"] = [AuditOut.from_row(r, names.get(r.actor_user_id)) for r in page["items"]]
     return page

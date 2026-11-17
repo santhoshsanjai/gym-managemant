@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     vapid_private_key: str | None = None
     vapid_subject: str = "mailto:admin@example.com"
 
+    # --- Uploaded files (profile photos) ----------------------------------
+    media_dir: str = "media"
+    max_photo_bytes: int = 2 * 1024 * 1024
+
     # --- Member self-service (scope 13.7) ---------------------------------
     member_editable_fields: list[str] = ["email", "address", "gender", "date_of_birth", "photo_url"]
 

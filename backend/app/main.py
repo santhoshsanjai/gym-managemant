@@ -7,8 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.models  # noqa: F401  (register all tables)
 from app.attendance.router import me_router as attendance_me_router
 from app.attendance.router import router as attendance_router
+from app.auth.admins import router as admins_router
 from app.auth.router import router as auth_router
 from app.common.config import get_settings
+from app.common.media import router as media_router
 from app.common.router import router as system_router
 from app.dashboard.router import router as dashboard_router
 from app.members.router import me_router as members_me_router
@@ -61,6 +63,8 @@ def create_app() -> FastAPI:
     for r in (
         system_router,
         auth_router,
+        admins_router,
+        media_router,
         members_router,
         members_me_router,
         trainers_router,

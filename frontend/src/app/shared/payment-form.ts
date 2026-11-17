@@ -2,12 +2,13 @@ import { Component, inject, input, output, signal, OnInit } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Api, errorMessage } from '../core/api.service';
 import { Member, PAYMENT_METHODS, PAYMENT_STATUSES, Page, Payment, Subscription } from '../core/models';
+import { MemberPicker } from './member-picker';
 import { HumanizePipe } from './pipes';
 
 /** Record (or correct) a manual payment. */
 @Component({
   selector: 'app-payment-form',
-  imports: [ReactiveFormsModule, HumanizePipe],
+  imports: [ReactiveFormsModule, HumanizePipe, MemberPicker],
   template: `
     @if (error()) {
       <div class="alert error" role="alert">{{ error() }}</div>
@@ -16,14 +17,7 @@ import { HumanizePipe } from './pipes';
       @if (!memberId() && !existing()) {
         <div class="field">
           <label for="msearch">Member</label>
-          <input id="msearch" placeholder="Search name, mobile or member ID" (input)="search($any($event.target).value)" />
-          @if (matches().length) {
-            <select formControlName="member_id" (change)="loadSubs()" size="4">
-              @for (m of matches(); track m.id) {
-                <option [ngValue]="m.id">{{ m.full_name }} · {{ m.mobile }} · {{ m.member_code }}</option>
-              }
-            </select>
-          }
+          <app-member-picker inputId="msearch" (picked)="onMember($event)" />
         </div>
       }
       @if (!existing()) {
@@ -90,7 +84,6 @@ export class PaymentForm implements OnInit {
   private api = inject(Api);
   protected methods = PAYMENT_METHODS;
   protected statuses = PAYMENT_STATUSES;
-  protected matches = signal<Member[]>([]);
   protected subs = signal<Subscription[]>([]);
   protected busy = signal(false);
   protected error = signal('');
@@ -122,9 +115,10 @@ export class PaymentForm implements OnInit {
     }
   }
 
-  search(q: string) {
-    if (q.trim().length < 2) return this.matches.set([]);
-    this.api.get<Page<Member>>('/members', { q, page_size: 8 }).subscribe((p) => this.matches.set(p.items));
+  onMember(m: Member | null) {
+    this.form.patchValue({ member_id: m?.id ?? null, subscription_id: null });
+    this.subs.set([]);
+    this.loadSubs();
   }
 
   loadSubs() {
