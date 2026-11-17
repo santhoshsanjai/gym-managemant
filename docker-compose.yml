@@ -21,6 +21,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      ENVIRONMENT: production
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gym}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gym}
       CORS_ORIGINS: '["https://${DOMAIN:-localhost}"]'
     volumes:

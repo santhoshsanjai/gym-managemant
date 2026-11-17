@@ -40,3 +40,16 @@ def members(db: DB, admin: AdminUser):
     audit.record(db, admin.id, "export", "report", "members")
     db.commit()
     return _file(data, f"members-{today().isoformat()}.xlsx")
+
+
+@router.get("/attendance.xlsx", response_class=Response, responses={200: {"content": {XLSX: {}}}})
+def monthly_attendance(
+    db: DB,
+    admin: AdminUser,
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+):
+    data = service.monthly_attendance_xlsx(db, year, month)
+    audit.record(db, admin.id, "export", "report", "attendance", year=year, month=month)
+    db.commit()
+    return _file(data, f"attendance-{year}-{month:02d}.xlsx")

@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { Api } from '../../core/api.service';
-import { Subscription } from '../../core/models';
+import { Page, Payment, Subscription } from '../../core/models';
 import { SHARED } from '../../shared';
 
 interface Mine {
@@ -69,15 +69,55 @@ interface Mine {
       </div>
       <p class="muted small" style="margin-bottom:0">Renewals and package changes are handled at the front desk.</p>
     </div>
+    <div class="card">
+      <h2>Payments</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th class="hide-sm">For</th>
+              <th class="hide-sm">Method</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of payments()?.items; track p.id) {
+              <tr>
+                <td>{{ p.payment_date | date: 'd MMM y' }}</td>
+                <td class="mono">{{ p.amount | currency: 'INR' : 'symbol' : '1.0-2' }}</td>
+                <td class="hide-sm">{{ p.package_name || '—' }}</td>
+                <td class="hide-sm">{{ p.method | humanize }}</td>
+                <td><app-badge [value]="p.status" /></td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="empty">No payments recorded yet.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (payments(); as p) {
+        <app-pager [page]="p.page" [pageSize]="p.page_size" [total]="p.total" (pageChange)="loadPayments($event)" />
+      }
+    </div>
   `,
 })
 export class MySubscriptionPage implements OnInit {
   private api = inject(Api);
   protected mine = signal<Mine | null>(null);
   protected history = signal<Subscription[]>([]);
+  protected payments = signal<Page<Payment> | null>(null);
 
   ngOnInit() {
     this.api.get<Mine>('/me/subscription').subscribe((m) => this.mine.set(m));
     this.api.get<Subscription[]>('/me/subscriptions').subscribe((h) => this.history.set(h));
+    this.loadPayments(1);
+  }
+
+  loadPayments(page: number) {
+    this.api.get<Page<Payment>>('/me/payments', { page, page_size: 10 }).subscribe((p) => this.payments.set(p));
   }
 }

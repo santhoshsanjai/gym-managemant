@@ -6,6 +6,14 @@ import { Policy } from '../../core/models';
 import { ToastService } from '../../core/toast.service';
 import { SHARED } from '../../shared';
 
+interface Kiosk {
+  id: number;
+  name: string;
+  created_at: string;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+}
+
 interface AdminAccount {
   id: number;
   username: string;
@@ -74,6 +82,57 @@ interface AdminAccount {
       </section>
     </div>
 
+    <section class="card" style="margin-top:1rem">
+      <div class="page-head" style="margin-bottom:.5rem">
+        <div>
+          <h2 style="margin:0">QR display screens</h2>
+          <div class="muted small">Links for the tablet or TV at the entrance. They can only show the check-in QR code.</div>
+        </div>
+        <span class="spacer"></span>
+        <button class="btn sm primary" type="button" (click)="kioskOpen.set(true)">+ New display link</button>
+      </div>
+      @if (newKioskUrl(); as url) {
+        <div class="alert ok">
+          <strong>Open this link on the display device.</strong> It is shown only once.
+          <div class="actions" style="margin-top:.5rem;align-items:center">
+            <code style="overflow-wrap:anywhere;flex:1">{{ url }}</code>
+            <button class="btn sm" type="button" (click)="copy(url)">Copy</button>
+          </div>
+        </div>
+      }
+      <ul class="list">
+        @for (k of kiosks(); track k.id) {
+          <li>
+            <div style="flex:1">
+              <strong>{{ k.name }}</strong>
+              <div class="muted small">
+                Created {{ k.created_at | date: 'd MMM y' }} ·
+                {{ k.last_seen_at ? 'last active ' + (k.last_seen_at | date: 'd MMM, h:mm a') : 'never used' }}
+              </div>
+            </div>
+            @if (k.revoked_at) {
+              <app-badge value="cancelled" text="Revoked" />
+            } @else {
+              <app-badge value="active" />
+              <button class="btn sm danger" type="button" (click)="revoke(k)">Revoke</button>
+            }
+          </li>
+        } @empty {
+          <li class="muted">No display links yet. Until you create one, the QR screen needs an admin login.</li>
+        }
+      </ul>
+    </section>
+
+    <app-modal title="New display link" [open]="kioskOpen()" (closed)="kioskOpen.set(false)">
+      <form class="form" (ngSubmit)="createKiosk()">
+        <div class="field">
+          <label for="kn">Name</label>
+          <input id="kn" name="kn" [(ngModel)]="kioskName" placeholder="e.g. Front door tablet" required maxlength="100" />
+        </div>
+        <div class="actions"><button class="btn primary" type="submit" [disabled]="!kioskName.trim()">Create link</button></div>
+      </form>
+    </app-modal>
+
     <app-modal title="Add admin" [open]="createOpen()" (closed)="createOpen.set(false)">
       @if (error()) {
         <div class="alert error" role="alert">{{ error() }}</div>
@@ -115,6 +174,10 @@ export class SettingsPage implements OnInit {
   protected resetFor = signal<AdminAccount | null>(null);
   protected error = signal('');
   newPassword = '';
+  kioskName = '';
+  protected kiosks = signal<Kiosk[]>([]);
+  protected kioskOpen = signal(false);
+  protected newKioskUrl = signal<string | null>(null);
   protected form = inject(FormBuilder).nonNullable.group({
     username: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9_.@-]+$/)]],
     email: ['', Validators.email],
@@ -124,6 +187,35 @@ export class SettingsPage implements OnInit {
   ngOnInit() {
     this.api.get<Policy>('/settings/policy').subscribe((p) => this.policy.set(p));
     this.loadAdmins();
+    this.loadKiosks();
+  }
+
+  loadKiosks() {
+    this.api.get<Kiosk[]>('/kiosks').subscribe((k) => this.kiosks.set(k));
+  }
+
+  createKiosk() {
+    this.api.post<Kiosk & { token: string }>('/kiosks', { name: this.kioskName.trim() }).subscribe({
+      next: (k) => {
+        this.kioskOpen.set(false);
+        this.kioskName = '';
+        this.newKioskUrl.set(`${location.origin}/kiosk#${k.token}`);
+        this.loadKiosks();
+      },
+      error: (e) => this.toast.error(errorMessage(e)),
+    });
+  }
+
+  revoke(k: Kiosk) {
+    if (!confirm(`Revoke "${k.name}"? That screen will stop showing the QR code.`)) return;
+    this.api.delete(`/kiosks/${k.id}`).subscribe(() => this.loadKiosks());
+  }
+
+  copy(text: string) {
+    navigator.clipboard?.writeText(text).then(
+      () => this.toast.ok('Link copied'),
+      () => this.toast.error('Copy failed; select the link and copy it manually'),
+    );
   }
 
   loadAdmins() {

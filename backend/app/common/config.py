@@ -8,8 +8,10 @@ environment variables (or a ``.env`` file); secrets must never be committed.
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_SECRET = "change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -22,7 +24,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://gym:gym@localhost:5432/gym"
 
     # --- Auth -------------------------------------------------------------
-    jwt_secret: str = Field(default="change-me-in-production", min_length=16)
+    jwt_secret: str = Field(default=_DEFAULT_SECRET, min_length=16)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 12 * 60
 
@@ -89,6 +91,14 @@ class Settings(BaseSettings):
         if any(d < 0 for d in v):
             raise ValueError("reminder days must be >= 0")
         return sorted(set(v), reverse=True)
+
+    @model_validator(mode="after")
+    def _production_secrets(self):
+        if self.environment.lower() in ("production", "prod"):
+            weak = self.jwt_secret == _DEFAULT_SECRET or len(self.jwt_secret) < 32
+            if weak:
+                raise ValueError("JWT_SECRET must be set to a random value of at least 32 characters in production")
+        return self
 
     @property
     def tz(self) -> ZoneInfo:

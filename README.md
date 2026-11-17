@@ -64,7 +64,16 @@ cd backend && createdb -O gym gym_test && pytest     # API tests on PostgreSQL
 cd frontend && npx ng test --watch=false             # unit tests
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, both test suites and a production build on every PR.
+End-to-end flows (Playwright) run against a live backend and frontend, including a real QR check-in
+through a simulated camera (needs `ffmpeg`):
+
+```bash
+cd backend && python -m app.cli seed-demo && uvicorn app.main:app --port 8000 &
+cd frontend && npm start &
+cd frontend && npx playwright install chromium && npm run e2e
+```
+
+CI (`.github/workflows/ci.yml`) runs lint, unit tests, a production build and the end-to-end flows on every PR.
 
 ## How attendance works
 
@@ -77,6 +86,11 @@ CI (`.github/workflows/ci.yml`) runs lint, both test suites and a production bui
    so double taps can't create duplicates.
 
 Admins can also record attendance manually (for example, when a member's camera is broken).
+
+**Display screens without an admin login.** In **Settings → QR display screens**, create a display link and open it
+on the entrance tablet. The link (`/kiosk#…`) can only fetch the QR code, so nobody at the tablet can reach admin
+screens. The secret sits in the URL fragment (never sent to or logged by the server), is stored on that device, and
+can be revoked at any time.
 
 ## Client decisions (scope section 13): defaults used
 
@@ -115,7 +129,12 @@ Other rules worth knowing:
 - **Profile photos** are uploaded files (JPEG/PNG/WebP, max 2 MB, type checked from the file bytes),
   stored in `MEDIA_DIR` (the `media` Docker volume) under random names. Members can change their own
   photo when `photo_url` is in `MEMBER_EDITABLE_FIELDS`.
-- Login and check-in are rate limited in the API and again at Nginx.
+- Login, check-in and kiosk requests are rate limited in the API (by the real client IP; a forged
+  `X-Forwarded-For` header is ignored) and again at Nginx.
+- With `ENVIRONMENT=production` (set in `docker-compose.yml`) the API refuses to start unless `JWT_SECRET` is a
+  random value of at least 32 characters.
+- Members can see their own payment history on the Subscription page.
+- Reports include a monthly attendance export (every check-in plus visits per member).
 
 ## Deployment (Linux VPS)
 

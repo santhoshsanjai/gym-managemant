@@ -1,4 +1,6 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Component, OnDestroy, OnInit, inject, input, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import QRCode from 'qrcode';
 import { Api, errorMessage } from '../../core/api.service';
 
@@ -84,7 +86,11 @@ interface QrToken {
   `,
 })
 export class QrDisplayPage implements OnInit, OnDestroy {
+  /** Set by the /kiosk route: authenticate with a kiosk link instead of an admin session. */
+  kiosk = input(false);
   private api = inject(Api);
+  private http = inject(HttpClient);
+  private kioskToken: string | null = null;
   protected img = signal<string | null>(null);
   protected error = signal('');
   protected secondsLeft = signal(0);
@@ -96,6 +102,13 @@ export class QrDisplayPage implements OnInit, OnDestroy {
   private wakeLock: any;
 
   ngOnInit() {
+    if (this.kiosk()) {
+      this.kioskToken = readKioskToken();
+      if (!this.kioskToken) {
+        this.error.set('This display link is incomplete. Ask an admin for a new link from Settings.');
+        return;
+      }
+    }
     this.fetch();
     this.tick = setInterval(() => this.onTick(), 1000);
     (navigator as any).wakeLock
@@ -117,11 +130,16 @@ export class QrDisplayPage implements OnInit, OnDestroy {
     if (left <= 4) this.fetch();
   }
 
+  private request(): Observable<QrToken> {
+    if (!this.kioskToken) return this.api.get<QrToken>('/attendance/qr/current');
+    return this.http.get<QrToken>('/api/attendance/qr/kiosk', { headers: { 'X-Kiosk-Token': this.kioskToken } });
+  }
+
   private fetching = false;
   private fetch() {
     if (this.fetching) return;
     this.fetching = true;
-    this.api.get<QrToken>('/attendance/qr/current').subscribe({
+    this.request().subscribe({
       next: async (t) => {
         this.fetching = false;
         this.error.set('');
@@ -134,8 +152,32 @@ export class QrDisplayPage implements OnInit, OnDestroy {
       },
       error: (e) => {
         this.fetching = false;
+        if (this.kioskToken && e?.status === 401) {
+          clearInterval(this.tick);
+          this.img.set(null);
+          this.error.set('This display link was revoked. Ask an admin for a new link from Settings.');
+          return;
+        }
         this.error.set(`Can't refresh the code: ${errorMessage(e)}. Retrying…`);
       },
     });
+  }
+}
+
+const KIOSK_KEY = 'gym.kiosk';
+
+/** The kiosk secret travels in the URL fragment (never sent to the server or
+ * logged), then is remembered on the device so the page survives reloads. */
+function readKioskToken(): string | null {
+  const fromHash = location.hash.replace(/^#/, '').trim();
+  try {
+    if (fromHash) {
+      localStorage.setItem(KIOSK_KEY, fromHash);
+      history.replaceState(null, '', location.pathname);
+      return fromHash;
+    }
+    return localStorage.getItem(KIOSK_KEY);
+  } catch {
+    return fromHash || null;
   }
 }

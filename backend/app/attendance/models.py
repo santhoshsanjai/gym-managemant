@@ -39,3 +39,18 @@ class Attendance(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     member: Mapped[Member] = relationship(lazy="joined")
+
+
+class KioskDevice(Base):
+    """A screen at the gym allowed to show the rotating QR code without an
+    admin login. Only a SHA-256 hash of its secret is stored."""
+
+    __tablename__ = "kiosk_devices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

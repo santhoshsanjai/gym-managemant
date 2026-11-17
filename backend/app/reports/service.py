@@ -10,6 +10,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.attendance.models import Attendance
 from app.common.timeutil import month_bounds, today
 from app.members.models import Member
 from app.members.service import annotate_membership
@@ -175,4 +176,44 @@ def members_xlsx(db: Session) -> bytes:
         for i in items
     ]
     _sheet(ws, headers, rows, date_cols={6, 8, 13})
+    return _save(wb)
+
+
+def monthly_attendance_xlsx(db: Session, year: int, month: int) -> bytes:
+    """Every check-in in the month, plus visits per member."""
+    from app.common.config import get_settings
+
+    tz = get_settings().tz
+    start, end = month_bounds(year, month)
+    rows_db = db.scalars(
+        select(Attendance)
+        .where(Attendance.attendance_date >= start, Attendance.attendance_date < end)
+        .order_by(Attendance.attendance_date, Attendance.checked_in_at)
+    ).all()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Check-ins"
+    headers = ["Date", "Time", "Member ID", "Member Name", "Mobile", "Trainer", "Source"]
+    rows = [
+        [
+            a.attendance_date,
+            a.checked_in_at.astimezone(tz).strftime("%H:%M"),
+            a.member.member_code,
+            a.member.full_name,
+            a.member.mobile,
+            a.member.trainer.full_name if a.member.trainer else None,
+            "QR scan" if a.source.value == "qr" else "Manual",
+        ]
+        for a in rows_db
+    ]
+    _sheet(ws, headers, rows, date_cols={1})
+
+    per_member: dict[int, list] = {}
+    for a in rows_db:
+        e = per_member.setdefault(a.member_id, [a.member.member_code, a.member.full_name, a.member.mobile, 0, None])
+        e[3] += 1
+        e[4] = a.attendance_date
+    sm = wb.create_sheet("Visits per member")
+    summary = sorted(per_member.values(), key=lambda r: (-r[3], r[1]))
+    _sheet(sm, ["Member ID", "Member Name", "Mobile", "Visits", "Last Visit"], summary, date_cols={5})
     return _save(wb)
