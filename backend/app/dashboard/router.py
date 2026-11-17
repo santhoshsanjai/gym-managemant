@@ -3,7 +3,8 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import aliased
 
 from app.attendance.models import Attendance
 from app.attendance.schemas import AttendanceOut
@@ -60,31 +61,36 @@ def admin_dashboard(
 
     window_end = day + timedelta(days=s.upcoming_expiry_window_days)
     active_sub = Subscription.status == SubscriptionStatus.active
+    nxt = aliased(Subscription)
+    not_renewed = ~exists(
+        select(nxt.id).where(
+            nxt.member_id == Subscription.member_id,
+            nxt.id != Subscription.id,
+            nxt.status == SubscriptionStatus.active,
+            nxt.expiry_date > Subscription.expiry_date,
+        )
+    )
     upcoming = db.scalars(
         select(Subscription)
-        .where(active_sub, Subscription.start_date <= day, Subscription.expiry_date.between(day, window_end))
+        .where(
+            active_sub,
+            not_renewed,
+            Subscription.start_date <= day,
+            Subscription.expiry_date.between(day, window_end),
+        )
         .order_by(Subscription.expiry_date)
         .limit(50)
     ).all()
     expired = db.scalars(
         select(Subscription)
-        .where(active_sub, Subscription.expiry_date.between(day - timedelta(days=30), day - timedelta(days=1)))
+        .where(
+            active_sub,
+            not_renewed,
+            Subscription.expiry_date.between(day - timedelta(days=30), day - timedelta(days=1)),
+        )
         .order_by(Subscription.expiry_date.desc())
         .limit(50)
     ).all()
-    # Hide expiries that were already renewed.
-    renewed = lambda sub: db.scalar(  # noqa: E731
-        select(Subscription.id)
-        .where(
-            Subscription.member_id == sub.member_id,
-            Subscription.id != sub.id,
-            active_sub,
-            Subscription.expiry_date > sub.expiry_date,
-        )
-        .limit(1)
-    )
-    upcoming = [x for x in upcoming if not renewed(x)]
-    expired = [x for x in expired if not renewed(x)]
 
     return AdminDashboard(
         as_of=day,

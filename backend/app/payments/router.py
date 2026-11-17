@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
-from app.auth.deps import DB, AdminUser, require_admin
+from app.auth.deps import DB, AdminUser, CurrentMember, require_admin
 from app.common import audit
 from app.common.errors import bad_request, not_found
 from app.common.pagination import Page, PageParams, paginate
@@ -16,6 +16,7 @@ from app.payments.schemas import PaymentCreate, PaymentOut, PaymentSummary, Paym
 from app.subscriptions.models import Subscription
 
 router = APIRouter(prefix="/payments", tags=["payments"], dependencies=[Depends(require_admin)])
+me_router = APIRouter(prefix="/me", tags=["member self-service"])
 
 
 @router.get("", response_model=Page[PaymentOut])
@@ -110,3 +111,11 @@ def update_payment(payment_id: int, body: PaymentUpdate, db: DB, admin: AdminUse
     db.commit()
     db.refresh(p)
     return service.to_out(p)
+
+
+@me_router.get("/payments", response_model=Page[PaymentOut])
+def my_payments(db: DB, member: CurrentMember, params: PageParams = Depends()):
+    """The signed-in member's own payment records (read-only)."""
+    page = paginate(db, service.list_query(member_id=member.id), params)
+    page["items"] = [service.to_out(p) for p in page["items"]]
+    return page

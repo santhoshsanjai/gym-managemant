@@ -12,6 +12,12 @@ export const routes: Routes = [
     title: 'Change password',
   },
   {
+    path: 'kiosk',
+    loadComponent: () => import('./pages/admin/qr-display').then((m) => m.QrDisplayPage),
+    data: { kiosk: true },
+    title: 'Gym QR code',
+  },
+  {
     path: 'admin/qr-display',
     canActivate: [adminGuard],
     loadComponent: () => import('./pages/admin/qr-display').then((m) => m.QrDisplayPage),

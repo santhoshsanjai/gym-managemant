@@ -1,6 +1,6 @@
 """Imports every model so SQLAlchemy metadata (and Alembic) see all tables."""
 
-from app.attendance.models import Attendance, QrToken  # noqa: F401
+from app.attendance.models import Attendance, KioskDevice, QrToken  # noqa: F401
 from app.auth.models import User  # noqa: F401
 from app.common.audit import AuditLog  # noqa: F401
 from app.common.database import Base  # noqa: F401

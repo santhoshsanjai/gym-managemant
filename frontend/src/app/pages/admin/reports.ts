@@ -33,6 +33,16 @@ import { ToastService } from '../../core/toast.service';
         </button>
       </section>
       <section class="card">
+        <h2>Monthly attendance</h2>
+        <p class="muted">Every check-in in the month with time and source, plus a sheet with visits per member.</p>
+        <div class="field" style="max-width:260px">
+          <label for="ram">Month</label><input id="ram" type="month" [(ngModel)]="attMonth" />
+        </div>
+        <button class="btn primary" type="button" style="margin-top:1rem" [disabled]="busy() || !attMonth" (click)="attendance()">
+          Download .xlsx
+        </button>
+      </section>
+      <section class="card">
         <h2>Members</h2>
         <p class="muted">All members with contact details, trainer, account status, current package and expiry date.</p>
         <button class="btn primary" type="button" [disabled]="busy()" (click)="members()">Download .xlsx</button>
@@ -50,6 +60,13 @@ export class ReportsPage {
   payments() {
     const [year, month] = this.month.split('-').map(Number);
     this.run(this.api.blob('/reports/payments.xlsx', { year, month, status: this.status }), `payments-${this.month}.xlsx`);
+  }
+
+  attMonth = new Date().toISOString().slice(0, 7);
+
+  attendance() {
+    const [year, month] = this.attMonth.split('-').map(Number);
+    this.run(this.api.blob('/reports/attendance.xlsx', { year, month }), `attendance-${this.attMonth}.xlsx`);
   }
 
   members() {

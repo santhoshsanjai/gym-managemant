@@ -42,9 +42,9 @@ limiter = RateLimiter()
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """The peer address. Behind Nginx, uvicorn's ``--proxy-headers`` already
+    replaces it with the real client IP from a trusted proxy; the raw
+    X-Forwarded-For header is never read here because clients can forge it."""
     return request.client.host if request.client else "unknown"
 
 
@@ -58,3 +58,10 @@ def checkin_rate_limit(request: Request) -> None:
     s = get_settings()
     if s.rate_limit_enabled:
         limiter.check(f"checkin:{client_ip(request)}", s.checkin_rate_limit, s.checkin_rate_window_seconds)
+
+
+def kiosk_rate_limit(request: Request) -> None:
+    s = get_settings()
+    if s.rate_limit_enabled:
+        # A display polls about once a minute; allow generous headroom.
+        limiter.check(f"kiosk:{client_ip(request)}", 30, 60)

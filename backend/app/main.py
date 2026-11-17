@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401  (register all tables)
+from app.attendance.kiosk import public_router as kiosk_public_router
+from app.attendance.kiosk import router as kiosk_router
 from app.attendance.router import me_router as attendance_me_router
 from app.attendance.router import router as attendance_router
 from app.auth.admins import router as admins_router
@@ -17,6 +19,7 @@ from app.members.router import me_router as members_me_router
 from app.members.router import router as members_router
 from app.notifications.router import router as notifications_router
 from app.packages.router import router as packages_router
+from app.payments.router import me_router as payments_me_router
 from app.payments.router import router as payments_router
 from app.reports.router import router as reports_router
 from app.subscriptions.router import me_router as subscriptions_me_router
@@ -72,8 +75,11 @@ def create_app() -> FastAPI:
         subscriptions_router,
         subscriptions_me_router,
         attendance_router,
+        kiosk_router,
+        kiosk_public_router,
         attendance_me_router,
         payments_router,
+        payments_me_router,
         dashboard_router,
         reports_router,
         notifications_router,
